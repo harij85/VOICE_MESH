@@ -1,0 +1,118 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "LedVoiceShaderProtocol",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/hello" },
+    { "$ref": "#/$defs/scene" },
+    { "$ref": "#/$defs/command" },
+    { "$ref": "#/$defs/ping" }
+  ],
+  "$defs": {
+    "hello": {
+      "type": "object",
+      "required": ["type", "role", "version"],
+      "properties": {
+        "type": { "const": "hello" },
+        "role": { "enum": ["brain", "renderer"] },
+        "version": { "type": "string" }
+      }
+    },
+    "ping": {
+      "type": "object",
+      "required": ["type", "t"],
+      "properties": {
+        "type": { "const": "ping" },
+        "t": { "type": "number" }
+      }
+    },
+    "command": {
+      "type": "object",
+      "required": ["type", "text"],
+      "properties": {
+        "type": { "const": "command" },
+        "text": { "type": "string" },
+        "source": { "type": "string", "default": "manual" }
+      }
+    },
+    "scene": {
+      "type": "object",
+      "required": ["type", "scene"],
+      "properties": {
+        "type": { "const": "scene" },
+        "scene": {
+          "type": "object",
+          "required": ["object", "presentation", "material", "camera", "fx"],
+          "properties": {
+            "object": {
+              "type": "object",
+              "required": ["name", "category"],
+              "properties": {
+                "name": { "type": "string" },
+                "category": { "type": "string" }
+              }
+            },
+            "presentation": {
+              "type": "object",
+              "required": ["mode", "style"],
+              "properties": {
+                "mode": { "type": "string" },
+                "style": { "type": "string" }
+              }
+            },
+            "shape_hint": {
+              "type": "object",
+              "properties": {
+                "primitive": { "type": "string" },
+                "features": { "type": "array", "items": { "type": "string" } },
+                "dimensions": {
+                  "type": "object",
+                  "properties": {
+                    "width": { "type": "number", "minimum": 0.05, "maximum": 5.0 },
+                    "height": { "type": "number", "minimum": 0.05, "maximum": 5.0 },
+                    "depth": { "type": "number", "minimum": 0.05, "maximum": 5.0 },
+                    "radius": { "type": "number", "minimum": 0.05, "maximum": 3.0 },
+                    "thickness": { "type": "number", "minimum": 0.01, "maximum": 1.0 },
+                    "segments": { "type": "integer", "minimum": 8, "maximum": 128 }
+                  }
+                }
+              }
+            },
+            "material": {
+              "type": "object",
+              "required": ["preset", "color"],
+              "properties": {
+                "preset": { "type": "string" },
+                "color": { "type": "string" },
+                "roughness": { "type": "number" }
+              }
+            },
+            "camera": {
+              "type": "object",
+              "required": ["orbit", "distance"],
+              "properties": {
+                "orbit": { "type": "boolean" },
+                "distance": { "type": "number" },
+                "fov": { "type": "number" }
+              }
+            },
+            "lighting": {
+              "type": "object",
+              "properties": {
+                "preset": { "type": "string" }
+              }
+            },
+            "fx": {
+              "type": "object",
+              "required": ["outline", "bloom", "alpha"],
+              "properties": {
+                "outline": { "type": "number" },
+                "bloom": { "type": "number" },
+                "alpha": { "type": "number"}              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

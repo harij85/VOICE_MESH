@@ -1,0 +1,31 @@
+[project]
+name = "led-voice-shader-brain"
+version = "0.1.0"
+requires-python = ">=3.10"
+dependencies = [
+  "websockets>=12.0"
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0.0",
+  "pytest-asyncio>=0.23.0"
+]
+voice = [
+  "pyaudio>=0.2.14",
+  "openai-whisper>=20231117",
+  "anthropic>=0.18.0",
+  "python-dotenv>=1.0.0",
+  "pynput>=1.7.6"
+]
+
+[project.scripts]
+brain = "brain.app:main"
+voice = "brain.voice_client:cli"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+[tool.ruff]
+line-length = 100
