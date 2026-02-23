@@ -1,0 +1,161 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <title>LED Voice Shader Renderer</title>
+    <style>
+      html, body { margin: 0; height: 100%; overflow: hidden; background: transparent; }
+
+      #viewport {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        width: 80vw;
+        height: 80vh;
+        border: 2px solid rgba(255,255,255,0.2);
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 10px 50px rgba(0,0,0,0.5);
+        cursor: move;
+      }
+
+      #viewport canvas {
+        width: 100%;
+        height: 100%;
+        display: block;
+      }
+
+      #resize-handle {
+        position: absolute;
+        right: 0;
+        bottom: 0;
+        width: 20px;
+        height: 20px;
+        cursor: nwse-resize;
+        background: linear-gradient(135deg, transparent 50%, rgba(255,255,255,0.3) 50%);
+        border-bottom-right-radius: 10px;
+      }
+
+      /*
+       * UI overlay — position: fixed so it is always rendered above the
+       * Three.js viewport regardless of transform-based stacking contexts.
+       *
+       * Root cause of the hidden-buttons bug: #viewport has
+       * `transform: translate(-50%,-50%)` which creates a new CSS stacking
+       * context.  Siblings with z-index: 10 can still end up visually behind
+       * the transformed element in certain browsers because the transform
+       * context competes at the same root stacking level.  Using
+       * `position: fixed` on the UI wrapper sidesteps this entirely — fixed
+       * elements are always composited above absolutely-positioned stacking
+       * contexts.
+       *
+       * pointer-events: none on the container lets mouse events pass through
+       * to the viewport canvas; individual interactive children re-enable them.
+       */
+      #ui-overlay {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 9999;
+      }
+
+      #hud {
+        position: absolute;
+        left: 12px;
+        top: 12px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+        color: rgba(255,255,255,0.85);
+        background: rgba(0,0,0,0.6);
+        padding: 10px 12px;
+        border-radius: 8px;
+        max-width: min(720px, calc(100vw - 24px));
+        pointer-events: none;
+        white-space: pre-wrap;
+      }
+
+      #controls {
+        position: absolute;
+        right: 12px;
+        top: 12px;
+        display: flex;
+        gap: 8px;
+        pointer-events: auto;
+      }
+
+      #controls button {
+        background: rgba(0,0,0,0.6);
+        border: 1px solid rgba(255,255,255,0.2);
+        color: rgba(255,255,255,0.9);
+        padding: 8px 14px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-family: ui-monospace, monospace;
+        font-size: 11px;
+        letter-spacing: 0.03em;
+        backdrop-filter: blur(6px);
+        -webkit-backdrop-filter: blur(6px);
+        transition: background 0.15s, border-color 0.15s;
+      }
+
+      #controls button:hover {
+        background: rgba(0,0,0,0.8);
+        border-color: rgba(255,255,255,0.4);
+      }
+
+      #controls button:active {
+        background: rgba(30,30,30,0.9);
+      }
+
+      #command-bar {
+        position: absolute;
+        bottom: 24px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: min(600px, calc(100vw - 48px));
+        pointer-events: auto;
+      }
+
+      #command-input {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 12px 16px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        font-size: 14px;
+        color: #fff;
+        background: rgba(0, 0, 0, 0.75);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        border-radius: 8px;
+        outline: none;
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+      }
+
+      #command-input:focus {
+        border-color: rgba(75, 123, 255, 0.8);
+        box-shadow: 0 0 0 2px rgba(75, 123, 255, 0.25);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="viewport">
+      <div id="resize-handle"></div>
+    </div>
+
+    <!-- UI overlay: always rendered above the WebGL viewport -->
+    <div id="ui-overlay">
+      <div id="hud">connecting…</div>
+      <div id="controls">
+        <button id="reset-view">Reset View</button>
+        <button id="fullscreen">Fullscreen</button>
+      </div>
+
+      <div id="command-bar" style="display:none;">
+        <input id="command-input" type="text" placeholder="Command (e.g. show me a phone prototype)" autocomplete="off" spellcheck="false" />
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

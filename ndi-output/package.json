@@ -1,0 +1,17 @@
+{
+  "name": "voice-mesh-ndi-output",
+  "version": "0.1.0",
+  "private": true,
+  "description": "NDI output wrapper for VOICE_MESH renderer via Electron + ndi-python",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
