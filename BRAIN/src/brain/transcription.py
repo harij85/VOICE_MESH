@@ -29,13 +29,19 @@ class WhisperTranscriber:
                 "Whisper not installed. Install with: pip install openai-whisper"
             )
 
-        # Bypass SSL verification for model download (macOS Python 3.14 issue)
-        import ssl
-        ssl._create_default_https_context = ssl._create_unverified_context
-        print("[whisper] SSL verification bypassed for model download")
-
         print(f"[whisper] Loading {model_size} model...")
-        self.model = whisper.load_model(model_size)
+
+        # Temporarily bypass SSL verification only for the model download
+        # (works around macOS Python certificate issues). The original
+        # context factory is restored immediately after loading.
+        import ssl
+        _original_ctx = ssl._create_default_https_context
+        ssl._create_default_https_context = ssl._create_unverified_context
+        try:
+            self.model = whisper.load_model(model_size)
+        finally:
+            ssl._create_default_https_context = _original_ctx
+
         print(f"[whisper] Model loaded")
 
     def transcribe(

@@ -1,4 +1,5 @@
 import asyncio
+import time
 import threading
 import websockets
 from websockets.server import WebSocketServerProtocol
@@ -10,6 +11,36 @@ from .shape_gen import ShapeGenerator
 from . import mesh_server
 
 CLIENTS: set[WebSocketServerProtocol] = set()
+
+# --- Message validation ---------------------------------------------------
+
+_VALID_TYPES = {"hello", "command", "patch", "ping"}
+_REQUIRED_KEYS: dict[str, list[str]] = {
+    "hello": ["role", "version"],
+    "command": ["text"],
+    "patch": ["patch"],
+    "ping": ["t"],
+}
+
+
+def _validate_message(msg: dict) -> str | None:
+    """Return an error string if *msg* is structurally invalid, else None."""
+    if not isinstance(msg, dict):
+        return "message is not a JSON object"
+    mtype = msg.get("type")
+    if mtype not in _VALID_TYPES:
+        return f"unknown message type: {mtype!r}"
+    for key in _REQUIRED_KEYS.get(mtype, ()):
+        if key not in msg:
+            return f"missing required key '{key}' for type '{mtype}'"
+    return None
+
+
+# --- Per-client rate limiting ----------------------------------------------
+
+_RATE_WINDOW = 2.0   # seconds
+_RATE_LIMIT = 10     # max messages per window
+_client_timestamps: dict[WebSocketServerProtocol, list[float]] = {}
 
 _generator = ShapeGenerator()
 _gen: dict = {"cancel": threading.Event(), "task": None}
@@ -57,13 +88,30 @@ async def _generate_shape_task(
 
 async def handler(ws: WebSocketServerProtocol) -> None:
     CLIENTS.add(ws)
+    _client_timestamps[ws] = []
     state = handler.state  # shared state across clients
     await ws.send(dumps(state.to_message()))
 
     try:
         async for raw in ws:
             msg = loads(raw)
+
+            # Validate structure
+            err = _validate_message(msg)
+            if err:
+                print(f"[brain] dropping invalid message: {err}")
+                continue
+
+            # Rate limit (command & patch only)
             mtype = msg.get("type")
+            if mtype in ("command", "patch"):
+                now = time.monotonic()
+                ts = _client_timestamps[ws]
+                ts[:] = [t for t in ts if now - t < _RATE_WINDOW]
+                if len(ts) >= _RATE_LIMIT:
+                    print("[brain] rate limit hit, dropping message")
+                    continue
+                ts.append(now)
 
             if mtype == "hello":
                 continue
@@ -111,6 +159,7 @@ async def handler(ws: WebSocketServerProtocol) -> None:
             # ignore unknown messages
     finally:
         CLIENTS.discard(ws)
+        _client_timestamps.pop(ws, None)
 
 
 handler.state = SceneState.new()  # type: ignore[attr-defined]

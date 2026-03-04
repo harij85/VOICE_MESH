@@ -4,10 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Purpose
 
-Voice-controlled 3D shader rendering for live product demos. Non-technical presenters can say "show me a phone prototype" / "make it blue" / "zoom in" and see instant visual updates. Outputs true alpha channel for disguise (D3) video production workflows.
+Computer-vision-powered digital twin generator. Point a camera at a real-world object and the app automatically creates a 3D mesh (digital twin). Users then refine the mesh interactively using voice or text commands — "make it smoother", "change the colour to red", "rotate it". Outputs true alpha channel for disguise (D3) video production workflows.
 
-**Phase 1 (current)**: Natural language → live shader updates
-**Phase 2 (planned)**: AR overlay on physical objects with camera/object tracking (Panasonic UE150 FreeD + ArUco/YOLO)
+**Phase 1 (complete)**: Text/voice → live shader & mesh updates (SDF raymarching + Shap-E)
+**Phase 2 (current)**: Camera input → object detection → automatic mesh generation (digital twin)
+**Phase 3 (planned)**: AR overlay — composite digital twin onto live camera feed with tracking (Panasonic UE150 FreeD + ArUco)
 
 ## Development Commands
 
@@ -83,14 +84,19 @@ python -m brain.ws_client        # Test WebSocket
 
 **Data Flow:**
 ```
-Text Input → BRAIN (NLU) → Scene Patch → State Merge → Broadcast → Renderer → Uniforms → Shader
+Camera Feed → Object Detection → Mesh Generation (digital twin)
+                                        ↓
+Voice/Text → BRAIN (NLU) → Scene Patch → State Merge → Broadcast → Renderer → Uniforms → Shader
 ```
 
 **BRAIN** (`BRAIN/src/brain/`):
-- `app.py`: WebSocket server, broadcasts to all clients
-- `nlu.py`: Regex-based command parser (replace with LLM - see roadmap)
+- `app.py`: WebSocket server with message validation & rate limiting, broadcasts to all clients
+- `nlu.py`: Regex-based command parser (fallback)
+- `llm_parser.py`: Claude API command parser (primary NLU)
 - `state.py`: Scene state with safety clamping (distance 0.8-8.0, FX 0.0-1.5, etc.)
+- `shape_gen.py`: Shap-E text-to-3D mesh generation
 - `protocol.py`: JSON serialization
+- `vision/` (Phase 2 — planned): Camera capture, object detection, mesh trigger
 
 **Renderer** (`renderer/src/`):
 - `main.js`: Three.js setup, uniform management, animation loop
@@ -128,18 +134,34 @@ Text Input → BRAIN (NLU) → Scene Patch → State Merge → Broadcast → Ren
 
 ## Known Issues
 
-**CRITICAL BUG**: `renderer/src/shaders/raymarch.frag.glsl:72`
-Line: `if (t <= 0.0 {` missing closing paren
-Fix: `if (t <= 0.0) {`
+*(Shader syntax bug at `raymarch.frag.glsl:72` has been fixed — BUG-008/013.)*
 
-## Priority Enhancements (from README)
+## Roadmap
 
-1. **Whisper/faster-whisper** mic input (push-to-talk)
-2. Replace `nlu.py` with **LLM → Scene Spec** (constrained to schema via function calling)
-3. Add **shape primitives**: cylinder, capsule, torus, rounded_slab in shader
-4. **Style presets** mapping to uniform bundles + shader variants
-5. **Safety**: validate against schema, ban shader injection, rate limiting, timeouts
-6. **Confidence field** so renderer can show when brain is guessing
+### Phase 2: Camera → Digital Twin (current priority)
+1. **Camera capture module** — webcam / USB / RTSP feed via OpenCV
+2. **Object detection** — identify object in frame (YOLO / Claude Vision)
+3. **Object description** — generate a text description of detected object for mesh generation
+4. **Auto-trigger Shap-E** — feed description into existing `shape_gen.py` pipeline
+5. **Iterative refinement** — user says "make it taller" / "smoother" to adjust the twin
+6. **Reference image overlay** — show camera snapshot alongside generated mesh for comparison
+
+### Phase 2.5: Improved Mesh Quality
+7. Replace Shap-E with higher-fidelity model (e.g. InstantMesh, TripoSR, or API-based)
+8. Support multi-view capture for better reconstruction
+9. Texture extraction from camera image → apply to mesh
+
+### Phase 3: AR Composite
+10. Live camera feed as renderer background
+11. Camera tracking (FreeD protocol for Panasonic UE150)
+12. Object registration (ArUco markers or feature matching)
+13. Composite digital twin onto live feed with matched perspective
+
+### Ongoing Improvements
+- Replace `nlu.py` regex with **LLM structured output** (Claude tool_use)
+- **Style presets** mapping to uniform bundles + shader variants
+- **Confidence field** so renderer can show when brain is guessing
+- Smooth uniform transitions (lerp on change)
 
 ## Modifying the System
 
@@ -149,6 +171,13 @@ Fix: `if (t <= 0.0) {`
 3. If new scene fields: update `protocol/schema.json`
 4. If new uniforms: update `renderer/src/main.js` `applySceneSpec()`
 5. If new shader parameters: update `renderer/src/shaders/raymarch.frag.glsl`
+
+### Adding Camera/Vision Features
+1. New modules go in `BRAIN/src/brain/vision/`
+2. Camera capture should be a separate async task feeding frames to detection
+3. Detection results trigger mesh generation via existing `shape_gen.py`
+4. Camera state (connected, detecting, generating) should be added to scene spec and broadcast
+5. Update `protocol/schema.json` with any new message types (e.g. `camera_frame`, `detection`)
 
 ### Adding Shader Primitives
 To support `shape_hint.primitive: "cylinder"`:

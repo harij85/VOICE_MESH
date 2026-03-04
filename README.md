@@ -1,6 +1,6 @@
-# LED Voice Shader
+# VOICE MESH
 
-**Voice-controlled 3D rendering for live product demos.** Non-technical presenters can say "show me a phone prototype" or "make it blue" and see instant visual updates with true alpha channel output for professional video production workflows.
+**Camera-to-digital-twin with voice/text refinement.** Point a camera at a real-world object and the app generates a 3D mesh (digital twin) automatically. Refine it interactively with voice or text — "make it smoother", "change the colour", "rotate it". Outputs true alpha channel for professional video production workflows (disguise D3, NDI).
 
 ![Python Tests](https://img.shields.io/badge/tests-61%20passed-brightgreen)
 ![Renderer Tests](https://img.shields.io/badge/tests-14%20passed-brightgreen)
@@ -11,16 +11,19 @@
 
 ## Features
 
-### ✨ Core Capabilities
+### Core Capabilities
 
-- **Natural Language Control** - "show me a tall blue cylinder", "make it wider", "zoom in"
-- **Dimensional Control** - Specify width, height, depth, radius via adjectives (tall, wide, small, etc.)
+- **Camera → Digital Twin** (Phase 2) - Point a camera at an object to auto-generate a 3D mesh
+- **Voice/Text Refinement** - "make it taller", "change colour to red", "zoom in"
+- **Natural Language Control** - "show me a tall blue cylinder", "make it wider"
+- **Dimensional Control** - Width, height, depth, radius via adjectives (tall, wide, small, etc.)
 - **Voice Input** (optional) - Push-to-talk with Whisper transcription + Claude LLM parsing
 - **Real-time Updates** - <100ms latency from command to visual update
-- **True Alpha Channel** - Transparent background for disguise (D3) video production
-- **5 Procedural Primitives** - rounded_box, cylinder, sphere, capsule, torus
+- **True Alpha Channel** - Transparent background for disguise (D3) / NDI video production
+- **Shap-E Mesh Generation** - Text-to-3D via OpenAI Shap-E
+- **5 SDF Primitives + 6 Procedural Meshes** - Dual rendering pipeline
 - **PBR Materials** - Physically-based rendering with roughness control
-- **Post-Processing** - Bloom, outline, FXAA anti-aliasing
+- **Post-Processing** - Alpha-preserving bloom, outline, FXAA
 
 ### 🎨 Natural Language Examples
 
@@ -91,17 +94,18 @@ npm run dev
 
 ```
 ┌──────────────┐         ┌──────────────┐         ┌──────────────┐
-│    Voice     │  HTTP   │    BRAIN     │   WS    │   Renderer   │
-│  (optional)  ├────────>│  (Python)    ├────────>│  (Three.js)  │
+│   Camera /   │         │    BRAIN     │   WS    │   Renderer   │
+│  Voice/Text  ├────────>│  (Python)    ├────────>│  (Three.js)  │
 │              │         │              │  :8765  │              │
-│ Whisper+LLM  │         │ NLU → Patch  │         │  Mesh Gen    │
+│ CV + Whisper │         │ NLU + Shap-E │         │ SDF + Mesh   │
 └──────────────┘         └──────────────┘         └──────────────┘
 ```
 
 **Data Flow:**
 ```
-Text/Voice Input → BRAIN (LLM/Regex NLU) → Scene Patch → WebSocket
-  → Renderer → Procedural Mesh → PBR Material → Post-Processing → Pixels
+Camera Feed → Object Detection → Description → Shap-E → Digital Twin Mesh
+                                                             ↓
+Voice/Text → BRAIN (LLM/Regex NLU) → Scene Patch → WebSocket → Renderer
 ```
 
 ### Components
@@ -286,40 +290,47 @@ The renderer outputs true alpha channel (background=0, object=opacity):
 
 ## Roadmap
 
-### Phase 1 (Current) - Natural Language → Live Shader ✓
+### Phase 1 (Complete) - Text/Voice → Live Shader & Mesh
 
-- [x] WebSocket architecture
-- [x] Regex-based NLU
-- [x] LLM-based NLU (Claude API)
+- [x] WebSocket architecture with message validation & rate limiting
+- [x] Regex-based NLU + LLM-based NLU (Claude API)
 - [x] Voice control (Whisper + Claude)
-- [x] Mesh-based rendering
-- [x] Dimensional control
-- [x] Safety clamping
-- [x] Post-processing effects
-- [x] Alpha channel output
+- [x] Dual rendering: SDF raymarching + Shap-E PLY mesh
+- [x] Dimensional control via natural language
+- [x] Safety clamping on all parameters
+- [x] Alpha-preserving post-processing (bloom, outline, FXAA)
+- [x] NDI output via Electron (1920x1080, 30fps)
 
-### Phase 2 (Planned) - AR Product Demo
+### Phase 2 (Current) - Camera → Digital Twin
 
-**Goal:** Overlay virtual branding on physical objects with camera/object tracking
+**Goal:** Point a camera at a real object, auto-generate a 3D digital twin, refine with voice/text
 
-**Requirements:**
-1. **Camera pose tracking** - Panasonic UE150 FreeD integration
-2. **Object pose tracking** - ArUco markers + optional YOLO
-3. **Compositor pipeline** - Keyed/alpha feed to disguise
-4. **Real-time alignment** - Virtual skin locked to physical object rotation
+- [ ] Camera capture module (webcam / USB / RTSP via OpenCV)
+- [ ] Object detection (YOLO / Claude Vision)
+- [ ] Auto-describe detected object → feed to Shap-E pipeline
+- [ ] Iterative voice/text refinement of generated mesh
+- [ ] Reference image overlay (camera snapshot vs. generated mesh)
+- [ ] Higher-fidelity mesh generation (InstantMesh / TripoSR)
+- [ ] Multi-view capture for better reconstruction
+- [ ] Texture extraction from camera image
 
-**Use Case:** Presenter picks up a physical product (e.g., unbranded bottle), and virtual branding updates in real-time as they rotate it, outputting live to disguise for broadcast.
+### Phase 3 (Planned) - AR Composite
 
-### Future Enhancements
+**Goal:** Composite digital twin onto live camera feed with matched perspective
 
-- [ ] Multi-object scenes
-- [ ] Animation presets
-- [ ] Texture mapping
+- [ ] Live camera feed as renderer background
+- [ ] Camera tracking (Panasonic UE150 FreeD protocol)
+- [ ] Object registration (ArUco markers or feature matching)
+- [ ] Real-time alignment — virtual twin locked to physical object
+
+### Ongoing
+
+- [ ] LLM structured output (Claude tool_use) replacing regex NLU
 - [ ] Style presets (wireframe, hologram, clay)
-- [ ] Confidence scoring for ambiguous commands
+- [ ] Smooth uniform transitions (lerp)
+- [ ] Multi-object scenes
 - [ ] Undo/redo for scene changes
 - [ ] Scene save/load
-- [ ] Custom shader injection (with safety sandboxing)
 
 ---
 
@@ -427,4 +438,4 @@ MIT License - See LICENSE file for details
 
 ---
 
-**Built for live product demos with natural language control.** 🎙️ → 🎨
+**Camera → Digital Twin → Voice Refinement → Production Output.**
